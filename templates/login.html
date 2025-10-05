@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Login — InstaDump</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-neutral-900 to-slate-900 flex items-center justify-center p-6">
+  <div class="w-full max-w-md bg-neutral-800 border border-neutral-700 rounded-lg p-6 shadow-lg">
+    <h2 class="text-xl font-semibold text-neutral-100 mb-4">Sign in to InstaDump</h2>
+    {% if error %}<div class="mb-3 text-red-400">{{ error }}</div>{% endif %}
+    <form method="post" class="space-y-4">
+      <input name="username" placeholder="Username" required class="w-full px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-neutral-100"/>
+      <input name="password" type="password" placeholder="Password" required class="w-full px-3 py-2 rounded bg-neutral-900 border border-neutral-700 text-neutral-100"/>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="remember" class="rounded"/><span>Remember me</span></label>
+      <div class="flex items-center justify-between">
+        <button class="px-4 py-2 bg-emerald-500 rounded hover:bg-emerald-600">Login</button>
+        <a href="/disclaimer" class="text-sm text-neutral-400 hover:underline">Back</a>
+      </div>
+    </form>
+    <p class="mt-4 text-sm text-neutral-400">Default account: <strong>admin</strong> / <strong>admin123</strong> — change it ASAP.</p>
+  </div>
+</body>
+</html>

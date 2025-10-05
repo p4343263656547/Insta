@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>InstaDump Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-neutral-900 to-black text-neutral-100">
+  <nav class="p-4 border-b border-neutral-700">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded bg-gradient-to-br from-emerald-400 to-indigo-600 flex items-center justify-center font-bold">ID</div>
+        <div>
+          <div class="font-semibold">InstaDump</div>
+          <div class="text-sm text-neutral-400">Personal toolkit</div>
+        </div>
+      </div>
+      <div>
+        <span class="text-sm text-neutral-400 mr-4">Hello, {{ session.user }}</span>
+        <a href="/logout" class="px-3 py-1 bg-neutral-800 rounded hover:bg-neutral-700">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto p-6">
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="md:col-span-2 bg-neutral-800 p-4 rounded border border-neutral-700">
+        <h3 class="font-semibold mb-2">Start a scan</h3>
+        <form id="startForm" onsubmit="start(event)" class="flex gap-2">
+          <input id="uname" placeholder="target username (e.g. dump.raj)" class="flex-1 px-3 py-2 rounded bg-neutral-900 border border-neutral-700"/>
+          <button type="submit" class="px-4 py-2 bg-emerald-500 rounded hover:bg-emerald-600">Start Scan</button>
+        </form>
+
+        <div class="mt-4">
+          <div id="term" class="bg-black text-emerald-400 p-4 rounded h-64 overflow-auto font-mono text-sm"></div>
+        </div>
+      </div>
+
+      <aside class="bg-neutral-800 p-4 rounded border border-neutral-700">
+        <h4 class="font-semibold">Actions</h4>
+        <ul class="mt-2 space-y-2 text-sm text-neutral-300">
+          <li><button onclick="openLogs()" class="w-full text-left px-3 py-2 bg-neutral-900 rounded">View recent logs</button></li>
+          <li><a href="#" class="block px-3 py-2 bg-neutral-900 rounded">Settings</a></li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+
+<script>
+async function start(e){
+  e.preventDefault();
+  const uname=document.getElementById('uname').value.trim();
+  if(!uname) return alert('Enter a username');
+  const term=document.getElementById('term'); term.textContent='';
+  append('$ Queuing job for ' + uname);
+  const res=await fetch('/start_job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:uname})});
+  const job=await res.json();
+  append('$ Job id: ' + job.id);
+  let status='';
+  while(status !== 'done' && status !== 'error'){
+    await new Promise(r=>setTimeout(r,1200));
+    const sres=await fetch('/job_status?id=' + job.id);
+    const s = await sres.json();
+    status = s.status;
+    append('$ status: ' + status);
+  }
+  append('$ Finished. Downloading report...');
+  const dl = '/download_report?id=' + job.id;
+  append(dl);
+  window.open(dl, '_blank');
+}
+function append(line){
+  const t=document.getElementById('term');
+  t.textContent += line + '\n';
+  t.scrollTop = t.scrollHeight;
+}
+function openLogs(){ alert('Logs view coming soon'); }
+</script>
+</body>
+</html>

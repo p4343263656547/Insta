@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Report</title>
+<style>body{font-family:Arial,Helvetica,sans-serif;background:white;color:#111;padding:18px} h1{color:#111}</style>
+</head>
+<body>
+  <h1>InstaDump Report — {{ data.username }}</h1>
+  {% if not data.exists %}
+    <p>Profile not found.</p>
+  {% else %}
+    <div style="display:flex;gap:18px;align-items:center">
+      {% if data.profile_pic_url %}
+        <img src="{{ data.profile_pic_url }}" alt="profile" width="96" height="96" style="border-radius:12px;object-fit:cover"/>
+      {% endif %}
+      <div>
+        <p><strong>{{ data.full_name }}</strong></p>
+        <p style="color:#555">{{ data.biography }}</p>
+      </div>
+    </div>
+    <hr style="margin:16px 0"/>
+    <p><strong>Followers:</strong> {{ data.followers }} &nbsp; <strong>Following:</strong> {{ data.followees }} &nbsp; <strong>Media:</strong> {{ data.media_count }}</p>
+    {% if data.latest_posts %}
+      <h3>Latest posts (up to 5)</h3>
+      <ul>
+      {% for p in data.latest_posts %}
+        <li>{{ p.date }} — {{ p.caption }}</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+</body>
+</html>
