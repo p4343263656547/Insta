@@ -18,7 +18,7 @@ SESSION_FILE = BASE / '.instaloader-session'
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.getenv('FLASK_SECRET', 'change_this_to_a_random_secret')
-app.config['PERMANENT_SESSION_LIFETIME'] = 60*60*24*30  # 30 days
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 30  # 30 days
 
 # ----------------- Database -----------------
 def init_db():
@@ -44,8 +44,10 @@ def create_default_admin():
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
-        cur.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                    ('admin', generate_password_hash('admin123')))
+        cur.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            ('admin', generate_password_hash('admin123'))
+        )
         conn.commit()
     conn.close()
 
@@ -55,11 +57,24 @@ create_default_admin()
 # ----------------- Worker -----------------
 def worker_loop():
     L = instaloader.Instaloader(download_pictures=False, save_metadata=False)
+
+    # Load session or login
     if SESSION_FILE.exists():
         try:
             L.load_session_from_file(str(SESSION_FILE))
+            print("Loaded Instagram session")
         except Exception:
-            pass
+            print("Failed to load session, trying login...")
+            SESSION_FILE.unlink(missing_ok=True)
+
+    if not SESSION_FILE.exists():
+        try:
+            L.login(os.getenv('INSTA_USER'), os.getenv('INSTA_PASS'))
+            L.save_session_to_file(str(SESSION_FILE))
+            print("Logged in to Instagram and saved session")
+        except Exception as e:
+            print(f"Instagram login failed: {e}")
+            return
 
     while True:
         conn = sqlite3.connect(DB_PATH)
@@ -82,8 +97,10 @@ def worker_loop():
             except Exception as e:
                 conn2 = sqlite3.connect(DB_PATH)
                 cur2 = conn2.cursor()
-                cur2.execute("UPDATE jobs SET status='error', result_json=? WHERE id=?", 
-                             (json.dumps({'error': str(e)}), job_id))
+                cur2.execute(
+                    "UPDATE jobs SET status='error', result_json=? WHERE id=?",
+                    (json.dumps({'error': str(e)}), job_id)
+                )
                 conn2.commit()
                 conn2.close()
         else:
@@ -107,12 +124,13 @@ def process_target(L, username):
             'biography': profile.biography,
             'profile_pic_url': getattr(profile, 'profile_pic_url', None)
         }
+        # Only get posts if profile is public
+        posts = []
         if not profile.is_private and profile.mediacount:
-            posts = []
             for i, post in enumerate(profile.get_posts()):
                 if i >= 5: break
                 posts.append({'date': post.date_utc.isoformat(), 'caption': post.caption})
-            data['latest_posts'] = posts
+        data['latest_posts'] = posts
         return data
     except instaloader.exceptions.ProfileNotExistsException:
         return {'exists': False}
