@@ -4,20 +4,23 @@ import threading
 import time
 import sqlite3
 import json
+import tempfile
 from pathlib import Path
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from weasyprint import HTML
 import instaloader
 
+# ----------------- Setup -----------------
 BASE = Path(__file__).parent
 DB_PATH = BASE / 'instadump.db'
-SESSION_FILENAME = BASE / '.instaloader-session'
+SESSION_FILE = BASE / '.instaloader-session'
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.getenv('FLASK_SECRET', 'change_this_to_a_random_secret')
-app.config['PERMANENT_SESSION_LIFETIME'] = 60*60*24*30  # 30 days for "remember me"
+app.config['PERMANENT_SESSION_LIFETIME'] = 60*60*24*30  # 30 days
 
+# ----------------- Database -----------------
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -36,26 +39,27 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-
-def create_user_if_missing():
+def create_default_admin():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute('SELECT COUNT(*) FROM users')
+    cur.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
-        cur.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
+        cur.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
                     ('admin', generate_password_hash('admin123')))
         conn.commit()
     conn.close()
 
-create_user_if_missing()
+init_db()
+create_default_admin()
 
+# ----------------- Worker -----------------
 def worker_loop():
     L = instaloader.Instaloader(download_pictures=False, save_metadata=False)
-    try:
-        L.load_session_from_file(SESSION_FILENAME.stem)
-    except Exception:
-        pass
+    if SESSION_FILE.exists():
+        try:
+            L.load_session_from_file(str(SESSION_FILE))
+        except Exception:
+            pass
 
     while True:
         conn = sqlite3.connect(DB_PATH)
@@ -67,9 +71,8 @@ def worker_loop():
             cur.execute("UPDATE jobs SET status='running' WHERE id=?", (job_id,))
             conn.commit()
             conn.close()
-
             try:
-                result = do_instaloader_check(L, target)
+                result = process_target(L, target)
                 rjson = json.dumps(result, ensure_ascii=False)
                 conn2 = sqlite3.connect(DB_PATH)
                 cur2 = conn2.cursor()
@@ -79,7 +82,8 @@ def worker_loop():
             except Exception as e:
                 conn2 = sqlite3.connect(DB_PATH)
                 cur2 = conn2.cursor()
-                cur2.execute("UPDATE jobs SET status='error', result_json=? WHERE id=?", (json.dumps({'error': str(e)}), job_id))
+                cur2.execute("UPDATE jobs SET status='error', result_json=? WHERE id=?", 
+                             (json.dumps({'error': str(e)}), job_id))
                 conn2.commit()
                 conn2.close()
         else:
@@ -88,7 +92,8 @@ def worker_loop():
 
 threading.Thread(target=worker_loop, daemon=True).start()
 
-def do_instaloader_check(L, username):
+# ----------------- Instaloader -----------------
+def process_target(L, username):
     try:
         profile = instaloader.Profile.from_username(L.context, username)
         data = {
@@ -112,6 +117,7 @@ def do_instaloader_check(L, username):
     except instaloader.exceptions.ProfileNotExistsException:
         return {'exists': False}
 
+# ----------------- Routes -----------------
 @app.route('/')
 def home():
     if 'user' not in session:
@@ -141,8 +147,7 @@ def login():
             if remember:
                 session.permanent = True
             return redirect(url_for('home'))
-        else:
-            return render_template('login.html', error='Invalid credentials')
+        return render_template('login.html', error='Invalid credentials')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -177,7 +182,11 @@ def job_status():
     if not row:
         return jsonify({'error': 'notfound'}), 404
     jid, status, rjson = row
-    return jsonify({'id': jid, 'status': status, 'result': json.loads(rjson) if rjson else None})
+    try:
+        result = json.loads(rjson) if rjson else None
+    except Exception:
+        result = None
+    return jsonify({'id': jid, 'status': status, 'result': result})
 
 @app.route('/download_report')
 def download_report():
@@ -191,9 +200,10 @@ def download_report():
         return 'No report', 404
     data = json.loads(row[0])
     html = render_template('report.html', data=data)
-    pdf_path = BASE / f'report_{jid}.pdf'
-    HTML(string=html).write_pdf(str(pdf_path))
-    return send_file(str(pdf_path), as_attachment=True, download_name=f'report_{jid}.pdf')
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
+        HTML(string=html).write_pdf(tmp_pdf.name)
+        return send_file(tmp_pdf.name, as_attachment=True, download_name=f'report_{jid}.pdf')
 
+# ----------------- Run -----------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
