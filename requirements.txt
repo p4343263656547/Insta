@@ -1,0 +1,7 @@
+Flask==2.3.2
+instaloader==4.11.1
+WeasyPrint==59.0
+Jinja2==3.1.2
+gunicorn==21.2.0
+markupsafe==2.1.3
+
