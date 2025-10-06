@@ -6,54 +6,162 @@
   <title>Disclaimer — InstaDump</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* tiny extra styling to get a subtle "hacker/neon" vibe */
-    .neon {
-      background: linear-gradient(90deg,#34d399 0%,#7c3aed 100%);
-      -webkit-background-clip:text; background-clip:text; color:transparent;
+    /* === GENERAL STYLE === */
+    body {
+      background: black;
+      color: #e5e7eb;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
     }
+
+    /* === MATRIX INTRO === */
+    #intro {
+      position: fixed;
+      inset: 0;
+      background: black;
+      color: #00ff99;
+      font-size: 14px;
+      line-height: 1.2;
+      white-space: pre;
+      overflow: hidden;
+      padding: 20px;
+      z-index: 999;
+      animation: fadeOut 2s ease-out 6s forwards;
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+
+    .matrix-line {
+      opacity: 0;
+      animation: fadeInLine 0.3s forwards;
+    }
+
+    @keyframes fadeInLine {
+      to { opacity: 1; }
+    }
+
+    /* === SCAN-LINE BACKGROUND === */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.03),
+        rgba(255, 255, 255, 0.03) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      animation: scan 8s linear infinite;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes scan {
+      0% { background-position-y: 0; }
+      100% { background-position-y: 100vh; }
+    }
+
+    /* === DISLCAIMER PANEL === */
     .panel {
-      background: linear-gradient(180deg, rgba(6,8,11,0.75), rgba(7,10,14,0.85));
-      border: 1px solid rgba(124,58,237,0.08);
-      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.3);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      transform: scale(0.9);
+      animation: fadeInPanel 1s ease-out 7s forwards;
+      z-index: 10;
     }
-    .glow-btn { box-shadow: 0 6px 20px rgba(124,58,237,0.12); }
+
+    @keyframes fadeInPanel {
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* === NEON TEXT === */
+    .neon {
+      background: linear-gradient(90deg, #10b981, #6366f1);
+      -webkit-background-clip: text;
+      color: transparent;
+      animation: glow 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 5px #10b981, 0 0 10px #6366f1; }
+      to { text-shadow: 0 0 25px #34d399, 0 0 45px #8b5cf6; }
+    }
+
+    /* === BUTTONS === */
+    .glow-btn {
+      transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    }
+    .glow-btn:hover {
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+      transform: scale(1.05);
+    }
+
+    /* === TYPING EFFECT === */
+    .typing::after {
+      content: '|';
+      animation: blink 1s infinite;
+      color: #10b981;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
   </style>
 </head>
-<body class="min-h-screen bg-neutral-900 text-neutral-100 flex items-center justify-center p-6">
-  <div class="max-w-2xl panel rounded-2xl p-8">
+<body class="min-h-screen flex items-center justify-center p-6 relative">
+
+  <!-- Matrix Intro -->
+  <div id="intro"></div>
+
+  <!-- Disclaimer Content -->
+  <div class="max-w-2xl w-full panel rounded-2xl p-8 relative z-10">
     <header class="flex items-start gap-4">
       <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-400 to-indigo-600 flex items-center justify-center font-bold text-black">ID</div>
       <div>
-        <h1 class="text-2xl font-semibold neon">⚠️ Usage & Disclaimer</h1>
-        <p class="text-sm text-neutral-400 mt-1">Please read carefully — use of this tool implies agreement with the terms below.</p>
+        <h1 class="text-2xl font-semibold neon typing">⚠️ Usage & Disclaimer</h1>
+        <p class="text-sm text-neutral-400 mt-1">Read carefully — using this tool means you accept the terms below.</p>
       </div>
     </header>
 
-    <main class="mt-6 space-y-4 text-sm text-neutral-300">
-      <p>This tool uses a server Instagram account to fetch <strong>public</strong> Instagram data for analysis. By continuing you agree to the following:</p>
+    <main class="mt-6 space-y-4 text-sm text-neutral-300 leading-relaxed">
+      <p>This tool uses a server Instagram account to fetch <strong>public</strong> data for research. By continuing you agree to:</p>
 
       <ul class="list-disc ml-5 space-y-2">
-        <li><strong>Lawful use only.</strong> Do not use this tool to access accounts you are not authorized to view.</li>
-        <li><strong>Logged activity.</strong> We record who requests data, the target username, the time, and the requestor IP address for auditing.</li>
-        <li><strong>No credential collection.</strong> You must NOT submit or ask others for Instagram passwords via this site.</li>
-        <li><strong>Private data limits.</strong> Private account data is only available if the server account can view it (i.e. it follows the private account).</li>
-        <li><strong>Rate limits & bans.</strong> Aggressive or automated scanning may cause temporary blocking by Instagram.</li>
+        <li><strong>✅ Lawful use only:</strong> You will not access unauthorized accounts.</li>
+        <li><strong>📜 Logged actions:</strong> Requests are recorded with IP, username, and time.</li>
+        <li><strong>🚫 No credentials:</strong> Never enter real Instagram passwords here.</li>
+        <li><strong>🔒 Private data:</strong> Shown only if the account is visible to the server’s Instagram.</li>
+        <li><strong>⚙️ Rate limits:</strong> Rapid queries may cause temporary blocking.</li>
       </ul>
 
-      <p class="text-neutral-400">If you have questions or want this service disabled for your account, contact: <a class="text-emerald-300 hover:underline" href="mailto:pratiksubedi2100@gmail.com">prashantasubedi@gmail.com</a></p>
+      <p class="text-neutral-400">For support or removal requests, contact:  
+        <a class="text-emerald-300 hover:underline" href="mailto:prashantasubedi@gmail.com">prashantasubedi@gmail.com</a>
+      </p>
 
       <form method="post" id="disclaimerForm" class="mt-4">
         <div class="flex items-center gap-3">
           <input id="consent" name="consent" type="checkbox" required class="w-4 h-4 accent-emerald-400">
-          <label for="consent" class="text-sm text-neutral-200">I have read and agree to the terms above. I understand my actions will be logged.</label>
+          <label for="consent" class="text-sm text-neutral-200">
+            I have read and agree to the terms above. I understand my activity will be logged.
+          </label>
         </div>
 
-        <!-- hidden timestamp so server can record when consent was given -->
         <input type="hidden" name="consent_ts" id="consent_ts" value="">
-
-        <div class="mt-6 flex gap-3">
-          <button type="submit" class="px-4 py-2 glow-btn rounded-lg bg-gradient-to-r from-emerald-400 to-indigo-600 text-black font-semibold">I AGREE — Continue</button>
-          <a href="#" onclick="history.back(); return false;" class="px-4 py-2 rounded-lg bg-neutral-700 text-neutral-200 hover:bg-neutral-600">Cancel</a>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button type="submit" class="px-5 py-2.5 glow-btn rounded-lg bg-gradient-to-r from-emerald-400 to-indigo-600 text-black font-semibold w-full sm:w-auto">
+            I AGREE — Continue
+          </button>
+          <a href="#" onclick="history.back(); return false;" class="px-5 py-2.5 rounded-lg bg-neutral-700 text-neutral-200 hover:bg-neutral-600 w-full sm:w-auto text-center">
+            Cancel
+          </a>
         </div>
 
         <p class="mt-3 text-xs text-neutral-500">Consent time: <span id="now_ts">—</span></p>
@@ -62,22 +170,41 @@
   </div>
 
   <script>
-    // fill consent timestamp (ISO) and show it on page
+    /* === MATRIX BOOT EFFECT === */
+    const intro = document.getElementById('intro');
+    const lines = [
+      "Initializing InstaDump Framework v3.2.7 ...",
+      "Loading core modules [██████████] 100%",
+      "Establishing secure connection ... OK",
+      "Fetching system resources ... OK",
+      "Starting UI modules ... OK",
+      "Performing safety & compliance checks ... OK",
+      "System ready. Launching interface..."
+    ];
+    lines.forEach((text, i) => {
+      const line = document.createElement('div');
+      line.textContent = text;
+      line.className = 'matrix-line';
+      line.style.animationDelay = `${i * 0.6}s`;
+      intro.appendChild(line);
+    });
+
+    /* === CONSENT TIMESTAMP === */
     const tsEl = document.getElementById('consent_ts');
     const nowEl = document.getElementById('now_ts');
-    function updateTs(){
+    function updateTs() {
       const iso = new Date().toISOString();
-      if(tsEl) tsEl.value = iso;
-      if(nowEl) nowEl.textContent = new Date().toLocaleString();
+      tsEl.value = iso;
+      nowEl.textContent = new Date().toLocaleString();
     }
     updateTs();
-    // update timestamp each minute in case user waits
     setInterval(updateTs, 60_000);
-    // prevent submission unless checkbox checked (HTML required covers most browsers)
-    document.getElementById('disclaimerForm').addEventListener('submit', (e)=>{
-      if(!document.getElementById('consent').checked){
+
+    /* === CHECKBOX VALIDATION === */
+    document.getElementById('disclaimerForm').addEventListener('submit', e => {
+      if (!document.getElementById('consent').checked) {
         e.preventDefault();
-        alert('You must agree to continue.');
+        alert('You must agree before continuing.');
       }
     });
   </script>
