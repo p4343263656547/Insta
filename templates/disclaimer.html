@@ -2,197 +2,431 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Disclaimer — InstaDump</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      background: black;
-      color: #e5e7eb;
+    :root{
+      --bg: #000;
+      --panel-bg: rgba(6,8,11,0.92);
+      --neon1: #10b981;
+      --neon2: #6366f1;
+      --muted: #94a3b8;
+    }
+    html,body { height: 100%; margin: 0; background: var(--bg); color:#e6eef8; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+
+    /* ========== full-screen loader overlay ========== */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(0,0,0,0.95), rgba(2,6,23,0.85));
       overflow: hidden;
-      font-family: 'Courier New', monospace;
     }
 
-    /* === MATRIX INTRO === */
-    #intro {
-      position: fixed;
+    /* matrix canvas full background */
+    #matrix {
+      position: absolute;
       inset: 0;
-      background: black;
-      color: #00ff99;
-      font-size: clamp(10px, 3vw, 14px);
-      line-height: 1.3;
-      padding: 3vw;
-      white-space: pre-wrap;
-      z-index: 50;
-      animation: fadeOut 1s ease-out 3.5s forwards;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+      filter: blur(0.6px) saturate(1.05);
+      opacity: 0.82;
     }
 
-    @keyframes fadeOut {
-      to { opacity: 0; visibility: hidden; }
+    /* boot log window */
+    .boot-window {
+      position: relative;
+      z-index: 3;
+      width: min(1100px, 94%);
+      max-width: 1100px;
+      background: linear-gradient(180deg, rgba(6,8,11,0.5), rgba(8,10,14,0.55));
+      border: 1px solid rgba(16, 185, 129, 0.06);
+      box-shadow: 0 30px 80px rgba(2,6,23,0.7);
+      border-radius: 12px;
+      padding: clamp(16px, 2.5vw, 28px);
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      backdrop-filter: blur(6px);
     }
 
-    .matrix-line {
-      opacity: 0;
-      animation: fadeInLine 0.25s forwards;
+    .boot-left {
+      width: 120px;
+      min-width: 96px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+      justify-content:flex-start;
+    }
+    .logo {
+      width:72px; height:72px; border-radius:12px;
+      background: linear-gradient(90deg, var(--neon1), var(--neon2));
+      display:flex; align-items:center; justify-content:center; color:#021018; font-weight:800; font-size:18px;
+      box-shadow: 0 8px 30px rgba(99,102,241,0.08);
+    }
+    .ambient {
+      font-size:12px; color: var(--muted);
+      text-align:center; line-height:1.15;
     }
 
-    @keyframes fadeInLine {
-      to { opacity: 1; }
+    .boot-body {
+      flex: 1 1 auto;
+      min-height: 120px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
     }
 
-    /* === SCAN-LINE OVERLAY === */
-    body::before {
-      content: "";
+    .logs {
+      background: rgba(2,6,11,0.28);
+      border-radius:8px;
+      padding: 10px;
+      font-family: "Courier New", monospace;
+      color: #7CFFB1;
+      font-size: clamp(12px, 1.8vw, 13px);
+      line-height: 1.35;
+      max-height: clamp(160px, 26vh, 300px);
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .log-line { opacity: 0; transform: translateX(-8px); animation: logIn .22s forwards; }
+    @keyframes logIn { to { opacity: 1; transform: none; } }
+
+    /* prompt area */
+    .prompt {
+      margin-top: 12px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .kbd {
+      border:1px solid rgba(255,255,255,0.06);
+      padding:8px 12px;
+      border-radius:8px;
+      background: rgba(255,255,255,0.02);
+      color:var(--muted);
+      font-family: "Courier New", monospace;
+      box-shadow: 0 6px 24px rgba(16,185,129,0.02);
+    }
+    .cta {
+      background: linear-gradient(90deg, var(--neon1), var(--neon2));
+      color:#021018; font-weight:700; padding:10px 14px; border-radius:10px; border:none; box-shadow:0 12px 36px rgba(99,102,241,0.10);
+    }
+
+    /* mobile continue button */
+    #mobileTap {
+      display:none;
       position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        to bottom,
-        rgba(255,255,255,0.03),
-        rgba(255,255,255,0.03) 1px,
-        transparent 1px,
-        transparent 3px
-      );
-      animation: scan 6s linear infinite;
-      z-index: 0;
-      pointer-events: none;
+      bottom: 5vh;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10010;
+      background: linear-gradient(90deg, var(--neon1), var(--neon2));
+      color:#021018; padding:12px 18px; border-radius:12px; border:none; font-weight:700;
+      box-shadow: 0 14px 36px rgba(99,102,241,0.12);
+      font-size:16px;
     }
 
-    @keyframes scan {
-      0% { background-position-y: 0; }
-      100% { background-position-y: 100vh; }
+    /* fadeout animation for loader */
+    .fade-away {
+      animation: fadeAway .9s ease-out forwards;
     }
+    @keyframes fadeAway { to { opacity: 0; transform: translateY(-6px); visibility: hidden; } }
 
-    /* === DISCLAIMER PANEL === */
+    /* ================= DISCLAIMER PANEL (kept as you liked) ================= */
     .panel {
-      background: rgba(17, 24, 39, 0.9);
-      border: 1px solid rgba(16,185,129,0.25);
-      box-shadow: 0 0 25px rgba(16,185,129,0.25);
-      backdrop-filter: blur(10px);
-      opacity: 0;
-      transform: scale(0.95);
-      animation: fadeInPanel 1s ease-out 4s forwards;
-      z-index: 10;
+      max-width:920px; width:94%; margin:auto; padding:20px; border-radius:14px;
+      background: var(--panel-bg);
+      border:1px solid rgba(99,102,241,0.06);
+      box-shadow:0 10px 40px rgba(2,6,23,0.6);
+      backdrop-filter: blur(8px);
+      opacity: 0; transform: translateY(10px);
+      transition: opacity .6s ease, transform .6s ease;
+      z-index: 1000;
+      position: relative;
     }
+    .panel.show { opacity: 1; transform: none; }
 
-    @keyframes fadeInPanel {
-      to { opacity: 1; transform: scale(1); }
-    }
+    .neon-title { background: linear-gradient(90deg,var(--neon1),var(--neon2)); -webkit-background-clip:text; color:transparent; font-weight:700; }
+    .muted { color: var(--muted); }
 
-    /* === TEXT & BUTTONS === */
-    .neon {
-      background: linear-gradient(90deg,#10b981,#6366f1);
-      -webkit-background-clip: text;
-      color: transparent;
-      animation: glow 2.5s ease-in-out infinite alternate;
-    }
-
-    @keyframes glow {
-      from { text-shadow: 0 0 5px #10b981,0 0 10px #6366f1; }
-      to { text-shadow: 0 0 20px #34d399,0 0 35px #8b5cf6; }
-    }
-
-    .glow-btn {
-      box-shadow: 0 0 15px rgba(16,185,129,0.4);
-      transition: all 0.3s ease;
-    }
-    .glow-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 25px rgba(99,102,241,0.6);
-    }
-
-    /* === RESPONSIVE FIXES === */
-    @media (max-width: 640px) {
-      .panel {
-        padding: 1.5rem;
-        width: 90%;
-        margin: auto;
-      }
-      h1 { font-size: 1.3rem; }
-      .text-sm { font-size: 0.85rem; }
-      ul { font-size: 0.85rem; }
+    /* layout adapt */
+    @media (max-width: 720px) {
+      .boot-window { padding: 14px; flex-direction: column; gap:12px; align-items: stretch; }
+      .boot-left { width: auto; flex-direction:row; gap:12px; align-items:center; }
+      .logo { width:56px; height:56px; font-size:16px; }
+      #mobileTap { display:block; }
+      .kbd { display:none; }
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 relative">
+<body>
+  <!-- Loader overlay -->
+  <div id="loader" role="dialog" aria-modal="true" aria-label="Loading screen">
+    <canvas id="matrix"></canvas>
 
-  <!-- Intro Animation -->
-  <div id="intro"></div>
-
-  <!-- Disclaimer -->
-  <div class="max-w-2xl w-full panel rounded-2xl p-8 relative z-10">
-    <header class="flex items-start gap-4">
-      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-emerald-400 to-indigo-600 flex items-center justify-center font-bold text-black">ID</div>
-      <div>
-        <h1 class="text-xl sm:text-2xl font-semibold neon">⚠️ Usage & Disclaimer</h1>
-        <p class="text-xs sm:text-sm text-neutral-400 mt-1">Please read carefully — using this tool means you accept these terms.</p>
+    <div class="boot-window" role="document" aria-hidden="false">
+      <div class="boot-left" aria-hidden="true">
+        <div class="logo">ID</div>
+        <div class="ambient muted">
+          InstaDump<br>
+          <small>secure probe</small>
+        </div>
       </div>
-    </header>
 
-    <main class="mt-5 space-y-3 text-sm text-neutral-300 leading-relaxed">
-      <p>This tool uses a server Instagram account to fetch <strong>public</strong> data. By continuing you agree to:</p>
+      <div class="boot-body">
+        <div class="logs" id="logs" aria-live="polite" aria-atomic="false"></div>
 
-      <ul class="list-disc ml-5 space-y-1.5">
-        <li><strong>✅ Lawful use only</strong> — do not access unauthorized accounts.</li>
-        <li><strong>📜 Logged activity</strong> — username, IP, and time are stored.</li>
-        <li><strong>🚫 No credentials</strong> — never enter real Instagram passwords.</li>
-        <li><strong>🔒 Private data</strong> — only visible if the server account follows it.</li>
-        <li><strong>⚙️ Rate limits</strong> — avoid rapid or automated scans.</li>
-      </ul>
-
-      <p class="text-neutral-400">Support: 
-        <a class="text-emerald-300 hover:underline" href="mailto:prashantasubedi@gmail.com">prashantasubedi@gmail.com</a>
-      </p>
-
-      <form method="post" id="disclaimerForm" class="mt-4">
-        <div class="flex items-start gap-3">
-          <input id="consent" name="consent" type="checkbox" required class="mt-1 w-4 h-4 accent-emerald-400">
-          <label for="consent" class="text-sm text-neutral-200">I agree to the terms above and understand my activity will be logged.</label>
+        <div class="prompt" id="promptArea" aria-hidden="true">
+          <div class="kbd" id="desktopPrompt">Press <strong>ENTER</strong> to continue</div>
+          <button class="cta" id="desktopCTA">Continue</button>
         </div>
+      </div>
+    </div>
 
-        <input type="hidden" name="consent_ts" id="consent_ts" />
-        <div class="mt-5 flex flex-col sm:flex-row gap-3">
-          <button type="submit" class="px-5 py-2.5 glow-btn rounded-lg bg-gradient-to-r from-emerald-400 to-indigo-600 text-black font-semibold text-center">I AGREE — Continue</button>
-          <a href="#" onclick="history.back(); return false;" class="px-5 py-2.5 rounded-lg bg-neutral-700 text-neutral-200 hover:bg-neutral-600 text-center">Cancel</a>
-        </div>
-        <p class="mt-3 text-xs text-neutral-500">Consent time: <span id="now_ts">—</span></p>
-      </form>
-    </main>
+    <button id="mobileTap" aria-hidden="true">Tap to continue</button>
   </div>
 
+  <!-- ================== DISCLAIMER PANEL (your preferred wording) ================== -->
+  <main id="disclaimerPanel" class="panel" role="main" aria-labelledby="disclaimerTitle" style="display:none;">
+    <div class="flex items-start gap-4">
+      <div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(90deg,#10b981,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:800;color:#021018">ID</div>
+      <div style="flex:1">
+        <h1 id="disclaimerTitle" class="neon-title text-lg">⚠️ Important — Disclaimer</h1>
+        <p class="muted" style="margin-top:6px">Please read carefully. Using this service indicates that you accept these terms.</p>
+      </div>
+    </div>
+
+    <section style="margin-top:14px; gap:10px;">
+      <div style="margin-top:8px;display:grid;gap:10px">
+        <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.02)">
+          <strong>Purpose</strong>
+          <p class="muted" style="margin-top:6px">This tool is intended for lawful analysis of publicly available Instagram data. It is not designed to harm or harass others.</p>
+        </div>
+        <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.02)">
+          <strong>Responsibility</strong>
+          <p class="muted" style="margin-top:6px">You use this tool at your own risk. The developer is not responsible for legal or account-related consequences arising from your actions.</p>
+        </div>
+        <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.02)">
+          <strong>Your Instagram account</strong>
+          <p class="muted" style="margin-top:6px">You must use your own Instagram account to access restricted content. Do not submit or request other people's credentials.</p>
+        </div>
+        <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.02)">
+          <strong>Private accounts</strong>
+          <p class="muted" style="margin-top:6px">If a target account is private, you can view its content only if your account follows them and has been granted access.</p>
+        </div>
+      </div>
+
+      <p class="muted" style="margin-top:8px">Contact for support or removal requests: <a href="mailto:prashantasubedi@gmail.com" class="text-emerald-300">prashantasubedi@gmail.com</a></p>
+
+      <form method="post" id="disclaimerForm" style="margin-top:12px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <input id="consent" name="consent" type="checkbox" required style="width:18px;height:18px;margin-top:4px" />
+          <label for="consent" class="muted">I have read and accept the terms. I understand that my activity will be logged (username, IP address, timestamp).</label>
+        </div>
+        <input type="hidden" name="consent_ts" id="consent_ts" />
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="cta" style="background:linear-gradient(90deg,#10b981,#6366f1);color:#021018;padding:10px 14px;border-radius:10px;border:none;font-weight:700" type="submit">I AGREE — Continue</button>
+          <a href="#" onclick="history.back(); return false;" class="kbd" style="background:transparent;border:1px solid rgba(255,255,255,0.04);padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;">Cancel</a>
+        </div>
+        <p class="muted" style="margin-top:8px;font-size:13px">Consent recorded at: <span id="now_ts">—</span></p>
+      </form>
+    </section>
+  </main>
+
   <script>
-    /* Shorter Matrix intro (3s total) */
-    const intro = document.getElementById('intro');
-    const lines = [
-      "Initializing InstaDump Core v3.2.7...",
-      "Loading secure modules... OK",
-      "Establishing system connection... OK",
-      "Ready. Launching disclaimer interface..."
-    ];
-    lines.forEach((t, i) => {
-      const l = document.createElement('div');
-      l.textContent = t;
-      l.className = 'matrix-line';
-      l.style.animationDelay = `${i * 0.4}s`;
-      intro.appendChild(l);
+    /* ======== Matrix rain (canvas) ======== */
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+
+    const fontSize = 14;
+    let columns = Math.floor(W / fontSize);
+    let drops = new Array(columns).fill(0);
+    const letters = '0123456789@#$%&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    function resetCanvas(){
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      columns = Math.floor(W / fontSize);
+      drops = new Array(columns).fill(0).map(()=>Math.floor(Math.random()*H/fontSize));
+    }
+    resetCanvas();
+    window.addEventListener('resize', () => {
+      resetCanvas();
     });
 
-    /* Timestamp */
-    const ts = document.getElementById('consent_ts');
-    const now = document.getElementById('now_ts');
-    function setTime(){
-      const d = new Date();
-      ts.value = d.toISOString();
-      now.textContent = d.toLocaleString();
-    }
-    setTime();
-    setInterval(setTime, 60_000);
-
-    /* Form validation */
-    document.getElementById('disclaimerForm').addEventListener('submit', e=>{
-      if(!document.getElementById('consent').checked){
-        e.preventDefault();
-        alert('You must agree to continue.');
+    function drawMatrix(){
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.font = fontSize + 'px monospace';
+      for(let i=0;i<columns;i++){
+        const text = letters.charAt(Math.floor(Math.random()*letters.length));
+        const x = i * fontSize;
+        const y = drops[i] * fontSize;
+        // green trail
+        ctx.fillStyle = 'rgba(20,255,140,0.85)';
+        ctx.fillText(text, x, y);
+        // fade
+        if(Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
       }
+    }
+
+    let matrixInterval = setInterval(drawMatrix, 55);
+
+    /* ======== Boot log typing & prompt ======== */
+    const logsEl = document.getElementById('logs');
+    const bootLines = [
+      "Booting InstaDump core v3.2.7...",
+      "Loading secure modules [██████████] 100%",
+      "Initializing session manager...",
+      "Performing safety & compliance checks... OK",
+      "Preparing interface...",
+      "Ready."
+    ];
+
+    function typeLine(text, delay, container) {
+      return new Promise(resolve => {
+        const span = document.createElement('div');
+        span.className = 'log-line';
+        container.appendChild(span);
+        let i = 0;
+        const speed = 18 + Math.random()*20;
+        function typeChar(){
+          span.textContent = text.slice(0, i);
+          i++;
+          if(i <= text.length) setTimeout(typeChar, speed);
+          else resolve(span);
+        }
+        setTimeout(typeChar, delay);
+      });
+    }
+
+    async function playBootLogs() {
+      logsEl.innerHTML = '';
+      let acc = 0;
+      for(let i=0;i<bootLines.length;i++){
+        await typeLine(bootLines[i], acc, logsEl);
+        acc = 120 + Math.random()*120;
+        logsEl.scrollTop = logsEl.scrollHeight;
+      }
+      // after typing show prompt area
+      document.getElementById('promptArea').style.opacity = '1';
+      document.getElementById('promptArea').setAttribute('aria-hidden','false');
+    }
+
+    playBootLogs();
+
+    /* ======== Continue handling (desktop Enter + click; mobile tap) ======== */
+    const loader = document.getElementById('loader');
+    const panel = document.getElementById('disclaimerPanel');
+    const desktopCTA = document.getElementById('desktopCTA');
+    const mobileTap = document.getElementById('mobileTap');
+
+    // show mobile tap if touch device
+    function isTouchDevice(){
+      return (('ontouchstart' in window) || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0);
+    }
+    if(isTouchDevice()){
+      mobileTap.style.display = 'block';
+      mobileTap.setAttribute('aria-hidden','false');
+      document.getElementById('desktopPrompt').style.display = 'none';
+    }
+
+    // Continue function: fade loader then reveal panel
+    function continueToDisclaimer(){
+      // stop matrix
+      clearInterval(matrixInterval);
+      // fade loader
+      loader.classList.add('fade-away');
+      setTimeout(()=> {
+        loader.style.display = 'none';
+        // show panel
+        panel.style.display = 'block';
+        setTimeout(()=> panel.classList.add('show'), 40);
+      }, 700);
+    }
+
+    // Desktop: Enter key
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === 'Return'){
+        continueToDisclaimer();
+      }
+    });
+
+    // Desktop CTA button
+    desktopCTA.addEventListener('click', ()=> continueToDisclaimer());
+
+    // Mobile tap button
+    mobileTap.addEventListener('click', ()=> continueToDisclaimer());
+
+    // fallback auto-continue after 12s (if user doesn't interact)
+    const AUTO_TIMEOUT_MS = 12000;
+    setTimeout(() => {
+      // only auto-continue if loader still visible
+      if(loader && loader.style.display !== 'none'){
+        continueToDisclaimer();
+      }
+    }, AUTO_TIMEOUT_MS);
+
+    /* ======== optional light beeps (toggle via keyboard or UI) ======== */
+    let audioCtx = null;
+    let muted = true; // start muted to avoid autoplay issues
+    function ensureAudio(){
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+    }
+    function beep(freq=700, dur=0.08, tOffset=0){
+      if(muted) return;
+      ensureAudio();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type='sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.01 + tOffset);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.01 + tOffset + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + tOffset);
+      o.stop(audioCtx.currentTime + tOffset + dur + 0.02);
+    }
+
+    // schedule some beeps while typing (if unmuted)
+    setTimeout(()=>{ beep(760,0.06); setTimeout(()=>beep(820,0.05),120); }, 600);
+
+    // Unmute/resume on any user gesture (improves compatibility)
+    document.addEventListener('click', function resumeAudioOnce(){
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+      document.removeEventListener('click', resumeAudioOnce);
+    });
+
+    /* ======== Consent timestamp population ======== */
+    const tsInput = document.getElementById('consent_ts');
+    const nowSpan = document.getElementById('now_ts');
+    function updateTs(){
+      const d = new Date();
+      tsInput.value = d.toISOString();
+      if(nowSpan) nowSpan.textContent = d.toLocaleString();
+    }
+    updateTs();
+    setInterval(updateTs, 60000);
+
+    /* ensure logs scroll */
+    const obs = new MutationObserver(()=>{ logsEl.scrollTop = logsEl.scrollHeight; });
+    obs.observe(logsEl, { childList: true, subtree: true });
+
+    /* Accessibility note: allow clicking the "Continue" CTA with Enter when focused */
+    desktopCTA.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') desktopCTA.click();
     });
   </script>
 </body>
