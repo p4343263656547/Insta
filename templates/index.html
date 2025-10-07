@@ -1,80 +1,476 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>InstaDump Dashboard</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>InstaDump — Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg: #030409;
+      --panel: rgba(6,8,11,0.86);
+      --muted: #95a7b8;
+      --accent1: #10b981;
+      --accent2: #6366f1;
+      --accent: linear-gradient(90deg,var(--accent1),var(--accent2));
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:#e6f3f1;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;-webkit-font-smoothing:antialiased;}
+    /* subtle overlay */
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.01) 0 1px, transparent 1px 4px);mix-blend-mode:overlay;opacity:0.65;z-index:0;}
+
+    /* Canvas matrix behind everything */
+    #matrix-canvas{ position:fixed; inset:0; z-index:0; opacity:0.12; filter: blur(0.6px) saturate(1.05); }
+
+    /* Header */
+    header.site-header{ position:sticky; top:0; z-index:40; backdrop-filter: blur(8px); background: linear-gradient(180deg, rgba(2,6,11,0.38), rgba(2,6,11,0.18)); border-bottom:1px solid rgba(124,58,237,0.04); }
+    .container{ max-width:1100px; margin:0 auto; padding:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; z-index:50; }
+
+    .brand{ display:flex; align-items:center; gap:12px; }
+    .logo-badge{ width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; background:var(--accent); color:#021018; box-shadow: 0 8px 30px rgba(99,102,241,0.06); }
+
+    /* Profile box: shows profile pic, username, settings, logout */
+    .profile-box{ display:flex; align-items:center; gap:12px; padding:6px; border-radius:10px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
+    .profile-pic{ width:44px; height:44px; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.02); font-weight:700; color:#021018; font-size:14px; }
+    .profile-meta{ display:flex; flex-direction:column; gap:1px; }
+    .profile-meta .name{ font-weight:600; font-size:14px; }
+    .profile-meta .sub{ font-size:12px; color:var(--muted); }
+
+    /* main layout */
+    main{ max-width:1100px; margin:18px auto; padding:18px; display:grid; grid-template-columns: 1fr 340px; gap:18px; align-items:start; z-index:10; }
+    @media(max-width:980px){ main{ grid-template-columns: 1fr; } }
+
+    /* panel */
+    .panel{ background: linear-gradient(180deg, rgba(6,8,11,0.85), rgba(7,10,14,0.88)); border-radius:14px; padding:18px; border:1px solid rgba(255,255,255,0.03); box-shadow: 0 20px 60px rgba(2,6,23,0.6); z-index:10; }
+    .panel h3{ font-size:16px; font-weight:700; color:transparent; background:var(--accent); -webkit-background-clip:text; }
+
+    /* scan form */
+    .scan-form{ display:flex; gap:10px; margin-top:12px; }
+    .scan-input{ flex:1; padding:10px 12px; border-radius:10px; background:#041722; border:1px solid rgba(255,255,255,0.03); color:#cfeee0; outline:none; font-family: 'Courier New', monospace; }
+    .scan-btn{ padding:10px 14px; border-radius:10px; background:var(--accent); color:#021018; font-weight:700; border:none; box-shadow: 0 10px 30px rgba(99,102,241,0.08); cursor:pointer; transition: transform .12s ease; }
+    .scan-btn:active{ transform: translateY(1px); }
+
+    /* options toggles */
+    .opts{ margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .opt{ background: rgba(255,255,255,0.02); padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.02); color:var(--muted); cursor:pointer; font-size:13px; user-select:none; }
+    .opt.active{ background: linear-gradient(90deg, rgba(16,185,129,0.14), rgba(99,102,241,0.12)); border-color: rgba(124,58,237,0.08); color:#bfffe7; box-shadow: 0 8px 18px rgba(16,185,129,0.03); }
+
+    /* terminal */
+    #term{ margin-top:14px; height:360px; min-height:160px; overflow:auto; border-radius:12px; padding:14px; background: linear-gradient(180deg,#041017 0%, #021014 100%); border:1px solid rgba(255,255,255,0.02); color:#8ef9c8; font-family: 'Courier New', monospace; font-size:13px; line-height:1.45; box-shadow: inset 0 -20px 60px rgba(0,0,0,0.6); }
+    .term-line{ opacity:0; transform: translateX(-6px); animation:termIn .22s forwards; }
+    .term-status-ok{ color:#8ef9c8; } .term-status-warn{ color:#ffd27a; } .term-status-err{ color:#ff8b94; }
+    @keyframes termIn{ to{ opacity:1; transform:none } }
+
+    /* progress bar */
+    .progress-wrap{ margin-top:12px; display:flex; align-items:center; gap:10px; }
+    .progress-bar{ flex:1; height:10px; background:#021217; border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,0.02); }
+    .progress-fill{ height:100%; width:0%; background: linear-gradient(90deg,var(--accent1),var(--accent2)); transition: width .6s ease; }
+
+    /* side actions */
+    .side .action-btn{ display:block; width:100%; text-align:left; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.02); color:var(--muted); margin-bottom:8px; cursor:pointer; }
+    .job-row{ display:flex; gap:8px; align-items:center; justify-content:space-between; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.01); font-size:13px; color:#dffced; }
+
+    /* settings modal */
+    #settingsModal{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.6); z-index:200; visibility:hidden; opacity:0; transition: opacity .18s ease; }
+    #settingsModal.show{ visibility:visible; opacity:1; }
+    .settings-card{ width:min(760px,96%); background: linear-gradient(180deg, rgba(6,8,11,0.95), rgba(8,10,14,0.95)); padding:18px; border-radius:12px; border:1px solid rgba(255,255,255,0.03); box-shadow:0 30px 80px rgba(2,6,23,0.7); }
+
+    /* footer */
+    footer{ max-width:1100px; margin:18px auto; text-align:center; color:var(--muted); font-size:13px; z-index:10; }
+    footer a{ color:#8ef9c8; text-decoration:none; font-weight:700; }
+
+    /* responsive tweaks */
+    @media(max-width:640px){
+      .scan-btn{ padding:12px; font-size:15px; }
+      #term{ height:260px; }
+      .profile-meta .name{ font-size:13px; }
+      .container{ padding:10px; }
+      .logo-badge{ width:38px; height:38px; }
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-slate-900 via-neutral-900 to-black text-neutral-100">
-  <nav class="p-4 border-b border-neutral-700">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded bg-gradient-to-br from-emerald-400 to-indigo-600 flex items-center justify-center font-bold">ID</div>
+<body>
+  <!-- matrix canvas background -->
+  <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+
+  <!-- header -->
+  <header class="site-header">
+    <div class="container" role="banner">
+      <div class="brand">
+        <div class="logo-badge" aria-hidden="true">ID</div>
         <div>
-          <div class="font-semibold">InstaDump</div>
-          <div class="text-sm text-neutral-400">Personal toolkit</div>
+          <div class="brand-title">InstaDump</div>
+          <div class="text-sm muted">Personal toolkit</div>
         </div>
       </div>
-      <div>
-        <span class="text-sm text-neutral-400 mr-4">Hello, {{ session.user }}</span>
-        <a href="/logout" class="px-3 py-1 bg-neutral-800 rounded hover:bg-neutral-700">Logout</a>
+
+      <!-- PROFILE BOX (uses session variables directly; no conditional block around them) -->
+      <div class="profile-box" role="region" aria-label="User profile" data-username="{{ session.user|default('') }}">
+        <!-- simple image src; if missing the JS will replace it with initials -->
+        <img id="profileImg" src="{{ session.profile_pic_url|default('') }}" alt="profile" class="profile-pic" style="object-fit:cover;">
+        <div class="profile-meta">
+          <div class="name" id="profileName">{{ session.user|default('Guest') }}</div>
+          <div class="sub">Signed in</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-left:12px;align-items:center">
+          <button id="openSettingsBtn" title="Settings" class="action-btn" style="padding:8px 10px;min-width:44px;">⚙️</button>
+          <a href="/logout" class="action-btn" style="padding:8px 10px;min-width:64px;text-align:center;">Logout</a>
+        </div>
       </div>
     </div>
-  </nav>
+  </header>
 
-  <main class="max-w-4xl mx-auto p-6">
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="md:col-span-2 bg-neutral-800 p-4 rounded border border-neutral-700">
-        <h3 class="font-semibold mb-2">Start a scan</h3>
-        <form id="startForm" onsubmit="start(event)" class="flex gap-2">
-          <input id="uname" placeholder="target username (e.g. dump.raj)" class="flex-1 px-3 py-2 rounded bg-neutral-900 border border-neutral-700"/>
-          <button type="submit" class="px-4 py-2 bg-emerald-500 rounded hover:bg-emerald-600">Start Scan</button>
-        </form>
-
-        <div class="mt-4">
-          <div id="term" class="bg-black text-emerald-400 p-4 rounded h-64 overflow-auto font-mono text-sm"></div>
-        </div>
+  <!-- main -->
+  <main>
+    <!-- left panel -->
+    <section class="panel" aria-labelledby="scanTitle">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 id="scanTitle">Start a scan</h3>
+        <div class="muted" id="localClock" style="font-size:13px"></div>
       </div>
 
-      <aside class="bg-neutral-800 p-4 rounded border border-neutral-700">
-        <h4 class="font-semibold">Actions</h4>
-        <ul class="mt-2 space-y-2 text-sm text-neutral-300">
-          <li><button onclick="openLogs()" class="w-full text-left px-3 py-2 bg-neutral-900 rounded">View recent logs</button></li>
-          <li><a href="#" class="block px-3 py-2 bg-neutral-900 rounded">Settings</a></li>
-        </ul>
-      </aside>
+      <form id="startForm" class="scan-form" onsubmit="startScan(event)">
+        <input id="uname" class="scan-input" placeholder="target username (e.g. dump.raj)" aria-label="Target username" />
+        <button type="submit" class="scan-btn" aria-label="Start scan">Scan</button>
+      </form>
+
+      <div class="opts" id="opts">
+        <div class="opt active" data-key="profile">Profile</div>
+        <div class="opt" data-key="posts">Posts</div>
+        <div class="opt" data-key="followers">Followers (sample)</div>
+        <div class="opt" data-key="contact">Contact in bio</div>
+        <div class="opt" data-key="photos">Photos</div>
+      </div>
+
+      <div id="term" role="log" aria-live="polite" aria-atomic="false"></div>
+
+      <div class="progress-wrap" aria-hidden="false">
+        <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div id="progressFill" class="progress-fill"></div></div>
+        <div class="muted" id="progressLabel">Idle</div>
+      </div>
     </section>
+
+    <!-- right panel (actions) -->
+    <aside class="side">
+      <div class="panel" aria-labelledby="actionsTitle">
+        <h4 id="actionsTitle">Quick actions</h4>
+        <button class="action-btn" onclick="openLogs()">View recent logs</button>
+        <button class="action-btn" onclick="clearConsole()">Clear console</button>
+        <button class="action-btn" onclick="downloadConsole()">Download console</button>
+        <button class="action-btn" onclick="location.reload()">Reload</button>
+
+        <hr style="border:none;height:1px;background:rgba(255,255,255,0.02);margin:12px 0">
+
+        <!-- REMOVED recent jobs table as requested -->
+        <div style="text-align:center;color:var(--muted);font-size:13px">No recent jobs shown here</div>
+      </div>
+
+      <div style="height:14px"></div>
+      
   </main>
+  
+<footer class="text-center text-sm text-neutral-400 mt-8 pb-4 z-10 relative">
+  © <span id="year"></span> InstaDump — created by 
+  <a href="https://instagram.com/prashantasubedi2" 
+     target="_blank" 
+     rel="noopener noreferrer"
+     class="text-emerald-400 hover:text-emerald-300 font-semibold underline hover:no-underline transition-colors">
+     @prashantasubedi2
+  </a>
+</footer>
 
 <script>
-async function start(e){
-  e.preventDefault();
-  const uname=document.getElementById('uname').value.trim();
-  if(!uname) return alert('Enter a username');
-  const term=document.getElementById('term'); term.textContent='';
-  append('$ Queuing job for ' + uname);
-  const res=await fetch('/start_job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:uname})});
-  const job=await res.json();
-  append('$ Job id: ' + job.id);
-  let status='';
-  while(status !== 'done' && status !== 'error'){
-    await new Promise(r=>setTimeout(r,1200));
-    const sres=await fetch('/job_status?id=' + job.id);
-    const s = await sres.json();
-    status = s.status;
-    append('$ status: ' + status);
+  // Automatically update the year
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="settings-card panel" role="document">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;color:transparent;background:var(--accent);-webkit-background-clip:text;">Settings</h3>
+        <button id="closeSettings" onclick="closeSettings()" class="action-btn" style="padding:6px 10px;">✕</button>
+      </div>
+
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label class="muted">Display name</label>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input id="displayNameInput" class="scan-input" placeholder="Display name (local)" style="flex:1" />
+            <button class="scan-btn" onclick="saveDisplayName()">Save</button>
+          </div>
+          <p class="muted" style="margin-top:6px">This updates the dashboard display name locally — to persist server-side, your server must implement <code>/update_profile</code>.</p>
+        </div>
+
+        <div>
+          <label class="muted">Client Sound</label>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="toggleSoundBtn" class="action-btn" onclick="toggleClientSound()">Toggle beep</button>
+            <button class="action-btn" onclick="resetSession()">Reset session</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="muted">Appearance</label>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="action-btn" onclick="setTheme('dark')">Dark</button>
+            <button class="action-btn" onclick="setTheme('light')">Light</button>
+            <button class="action-btn" onclick="setAccent('#10b981','#6366f1')">Emerald / Indigo</button>
+            <button class="action-btn" onclick="setAccent('#06b6d4','#7c3aed')">Cyan / Magenta</button>
+            <button class="action-btn" onclick="setAccent('#ff416c','#ff4b2b')">Red / Orange</button>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button class="scan-btn" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ------------------ Utilities & UI init ------------------ */
+document.getElementById('year').textContent = new Date().getFullYear();
+const localClockEl = document.getElementById('localClock');
+function updateClock(){ localClockEl.textContent = new Date().toLocaleString(); }
+updateClock(); setInterval(updateClock, 60000);
+
+/* matrix background canvas */
+const canvas = document.getElementById('matrix-canvas');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+const fontSize = 14;
+let columns = Math.floor(W / fontSize);
+let drops = new Array(columns).fill(0).map(()=>Math.floor(Math.random()*H/fontSize));
+const letters = '01@#%&*()abcdefhijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function resetMatrix(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  columns = Math.floor(W / fontSize);
+  drops = new Array(columns).fill(0).map(()=>Math.floor(Math.random()*H/fontSize));
+}
+window.addEventListener('resize', resetMatrix);
+
+function drawMatrix(){
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  ctx.fillRect(0,0,W,H);
+  ctx.font = fontSize + 'px monospace';
+  for(let i=0;i<columns;i++){
+    const text = letters.charAt(Math.floor(Math.random()*letters.length));
+    const x = i * fontSize;
+    const y = drops[i] * fontSize;
+    ctx.fillStyle = 'rgba(20,255,140,0.9)';
+    ctx.fillText(text, x, y);
+    if(Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
   }
-  append('$ Finished. Downloading report...');
-  const dl = '/download_report?id=' + job.id;
-  append(dl);
-  window.open(dl, '_blank');
 }
-function append(line){
-  const t=document.getElementById('term');
-  t.textContent += line + '\n';
-  t.scrollTop = t.scrollHeight;
+let matrixInterval = setInterval(drawMatrix, 60);
+
+/* ------------------ Terminal helpers ------------------ */
+const termEl = document.getElementById('term');
+function appendTerm(line, status){
+  const div = document.createElement('div');
+  div.className = 'term-line ' + (status ? ('term-status-' + status) : '');
+  termEl.appendChild(div);
+  // typing effect
+  let i = 0;
+  const speed = Math.max(2, 6 + Math.random()*6);
+  function step(){
+    div.textContent = line.slice(0, i);
+    i++;
+    if(i <= line.length) setTimeout(step, speed);
+    else termEl.scrollTop = termEl.scrollHeight;
+  }
+  step();
 }
-function openLogs(){ alert('Logs view coming soon'); }
+/* quick plain append (no typing) */
+function appendPlain(line, cls){
+  const d = document.createElement('div');
+  d.className = cls || '';
+  d.textContent = line;
+  termEl.appendChild(d);
+  termEl.scrollTop = termEl.scrollHeight;
+}
+
+/* clear / download console */
+function clearConsole(){ termEl.innerHTML = ''; appendPlain('$ Console cleared'); }
+function downloadConsole(){
+  const text = Array.from(termEl.children).map(c => c.textContent).join('\n');
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'instadump_console.txt'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------ Options toggles ------------------ */
+document.querySelectorAll('.opt').forEach(o => {
+  o.addEventListener('click', () => o.classList.toggle('active'));
+});
+
+/* ------------------ Start scan flow ------------------ */
+async function startScan(e){
+  e && e.preventDefault();
+  const unameField = document.getElementById('uname');
+  const uname = unameField.value.trim();
+  if(!uname) return alert('Enter a username');
+  const opts = Array.from(document.querySelectorAll('.opt.active')).map(x=>x.dataset.key);
+  appendTerm(`$ Queuing job for ${uname}`);
+  setProgress(6, 'Queuing');
+  try{
+    const resp = await fetch('/start_job', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ username: uname, fields: opts })
+    });
+    if(!resp.ok) throw new Error('Server error: ' + resp.status);
+    const job = await resp.json();
+    appendTerm(`$ Job id: ${job.id}`, 'ok');
+    pollJob(job.id);
+  }catch(err){
+    appendTerm('! Failed to queue job: ' + (err.message || err), 'err');
+    setProgress(0, 'Error');
+  }
+}
+
+/* show progress */
+function setProgress(percent, label){
+  document.getElementById('progressFill').style.width = Math.min(100, Math.max(0, percent)) + '%';
+  document.getElementById('progressLabel').textContent = label || '';
+}
+
+/* poll job status until done/error */
+async function pollJob(jobId){
+  let status = '';
+  let progress = 8;
+  while(status !== 'done' && status !== 'error'){
+    await new Promise(r => setTimeout(r, 1200));
+    try{
+      const res = await fetch('/job_status?id=' + encodeURIComponent(jobId));
+      if(!res.ok) { appendTerm('! Poll error: ' + res.status, 'err'); break; }
+      const info = await res.json();
+      status = info.status;
+      appendTerm(`$ status: ${status}`, status === 'error' ? 'err' : (status === 'done' ? 'ok' : 'warn'));
+      progress = Math.min(95, progress + Math.floor(Math.random()*16) + 6);
+      setProgress(progress, status === 'running' ? 'Processing' : status);
+      if(status === 'done'){
+        setProgress(100, 'Complete — preparing report');
+        appendTerm('$ Finished. Opening report...');
+        window.open('/download_report?id=' + encodeURIComponent(jobId), '_blank');
+        break;
+      }
+      if(status === 'error'){
+        appendTerm('! Job returned error: ' + (info.result?.error || 'unknown'), 'err');
+        setProgress(0, 'Error');
+        break;
+      }
+    }catch(err){
+      appendTerm('! Poll exception: ' + (err.message || err), 'err');
+      break;
+    }
+  }
+}
+
+/* ------------------ Quick actions ------------------ */
+function openLogs(){ alert('Server logs endpoint not implemented. Add an admin route to serve logs or /recent_jobs.'); }
+function clearAllLocal(){ localStorage.removeItem('instadump_recent_jobs'); appendPlain('$ Local history cleared'); }
+
+/* ------------------ Settings modal ------------------ */
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('openSettingsBtn').addEventListener('click', openSettings);
+function openSettings(){ settingsModal.classList.add('show'); settingsModal.setAttribute('aria-hidden','false'); clearInterval(matrixInterval); }
+function closeSettings(){ settingsModal.classList.remove('show'); settingsModal.setAttribute('aria-hidden','true'); }
+
+/* theme & accent */
+function setTheme(t){
+  if(t === 'light'){
+    document.documentElement.style.setProperty('--bg', '#f7fafc');
+    document.documentElement.style.setProperty('--panel', 'rgba(255,255,255,0.9)');
+    document.documentElement.style.setProperty('--muted', '#42566b');
+    appendTerm('$ Theme set to light', 'ok');
+  } else {
+    document.documentElement.style.setProperty('--bg', '#030409');
+    document.documentElement.style.setProperty('--panel', 'rgba(6,8,11,0.86)');
+    document.documentElement.style.setProperty('--muted', '#95a7b8');
+    appendTerm('$ Theme set to dark', 'ok');
+  }
+}
+function setAccent(a1, a2){
+  document.documentElement.style.setProperty('--accent1', a1);
+  document.documentElement.style.setProperty('--accent2', a2);
+  appendTerm('$ Accent updated', 'ok');
+}
+
+/* client sound */
+let clientSound = false;
+function toggleClientSound(){ clientSound = !clientSound; appendTerm('$ Client sound ' + (clientSound ? 'enabled' : 'muted')); }
+
+/* reset session (calls optional backend) */
+async function resetSession(){
+  if(!confirm('Reset the server instaloader session file? This will require re-login on server.')) return;
+  try{
+    const res = await fetch('/reset_session', { method: 'POST' });
+    if(res.ok){
+      appendTerm('$ Reset request sent to server. Check server logs for progress.', 'ok');
+    } else {
+      appendTerm('! Server reset endpoint not available: ' + res.status, 'err');
+    }
+  }catch(e){ appendTerm('! Reset request failed: ' + (e.message||e), 'err'); }
+}
+
+/* save display name (attempt server update, otherwise update locally) */
+async function saveDisplayName(){
+  const val = document.getElementById('displayNameInput').value.trim();
+  if(!val) return alert('Enter a display name');
+  // optimistic update
+  document.getElementById('profileName').textContent = val;
+  appendTerm(`$ Display name updated locally to "${val}"`);
+  // try server endpoint (optional)
+  try{
+    const resp = await fetch('/update_profile', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({display_name: val})
+    });
+    if(resp.ok) appendTerm('$ Server profile updated', 'ok');
+    else appendTerm('! /update_profile not available on server', 'warn');
+  }catch(e){
+    appendTerm('! Server update failed — saved locally only', 'warn');
+  }
+}
+
+/* ------------------ image fallback to initials (no Jinja conditional block) ------------------ */
+const profileImg = document.getElementById('profileImg');
+const userData = document.querySelector('.profile-box').dataset.username || '';
+function setProfileFallback(){
+  // if src empty or 404, show initials block instead
+  const initials = (userData && userData.length) ? userData.slice(0,2).toUpperCase() : 'ME';
+  function showInitials(){
+    const parent = profileImg.parentNode;
+    const initialsDiv = document.createElement('div');
+    initialsDiv.className = 'profile-pic';
+    initialsDiv.textContent = initials;
+    parent.replaceChild(initialsDiv, profileImg);
+  }
+  if(!profileImg.src || profileImg.src.trim() === ''){
+    showInitials();
+    return;
+  }
+  profileImg.onerror = () => showInitials();
+}
+
+/* init */
+setProfileFallback();
+
+/* quick helpers */
+document.getElementById('uname').addEventListener('keydown', e => { if(e.key === 'Enter'){ startScan(e); }});
+document.getElementById('displayNameInput').value = document.getElementById('profileName').textContent || '';
+
+/* accessibility: pause matrix when heavy typing or settings open */
+document.getElementById('openSettingsBtn').addEventListener('click', ()=> { clearInterval(matrixInterval); });
+
 </script>
 </body>
 </html>
